@@ -29,15 +29,17 @@ export const calculateRisk = (
   if (amount > 100) risk += 0.1;
   if (amount > 1000) risk += 0.2;
 
+  // Drones have almost no volume risk if small amount
+  if (route === RouteType.LOW_ALTITUDE_DRONE && amount <= 10) {
+      risk = 0.05; // 5% flat risk
+  }
+
   // Strategy Modifiers
   switch (strategy) {
     case StrategyType.SHOTGUN:
-      // Shotgun lowers individual risk but we handle the logic of "some fail" elsewhere
-      // Here, it represents the average risk of a sub-packet
       risk *= 0.7; 
       break;
     case StrategyType.DECOY:
-      // Decoy significantly lowers risk for the main package
       risk *= 0.4;
       break;
     case StrategyType.PREMIUM_CONCEALMENT:
@@ -48,7 +50,7 @@ export const calculateRisk = (
       break;
   }
 
-  return Math.min(Math.max(risk, 0.05), 0.99); // Clamp between 5% and 99%
+  return Math.min(Math.max(risk, 0.01), 0.99); // Clamp between 1% and 99%
 };
 
 export const processGameTick = (state: GameState): GameState => {
@@ -87,7 +89,7 @@ export const processGameTick = (state: GameState): GameState => {
 
         newNotifications.push(createNotification(
           'SHIPMENT SEIZED', 
-          `Route ${shipment.route} intercepted. Lost ${shipment.amount} units of ${shipment.commodity}. ${covered > 0 ? `Risk Pool covered $${covered}.` : 'Risk Pool empty.'}`,
+          `Route ${shipment.route} intercepted. Lost ${shipment.amount} units. ${covered > 0 ? `Insured $${covered}.` : ''}`,
           'error'
         ));
 
@@ -98,14 +100,32 @@ export const processGameTick = (state: GameState): GameState => {
         // SUCCESS
         shipment.status = 'delivered';
         newState.money += shipment.potentialRevenue;
+        
+        // Reputation Gain
+        const repGain = Math.floor(shipment.potentialRevenue / 100);
+        newState.reputation += repGain;
+
+        // Level Up Check
+        const nextLevelThreshold = newState.level * 1000;
+        if (newState.reputation >= nextLevelThreshold) {
+            newState.level += 1;
+            newNotifications.push(createNotification(
+                'EMPIRE EXPANSION',
+                `Organization reached Tier ${newState.level}. New contacts available.`,
+                'success'
+            ));
+        }
+
         newNotifications.push(createNotification(
           'PAYOUT RECEIVED', 
-          `Shipment delivered via ${shipment.route}. Earned $${shipment.potentialRevenue.toLocaleString()}.`,
+          `Shipment delivered via ${shipment.route}. +$${shipment.potentialRevenue.toLocaleString()} | +${repGain} REP`,
           'success'
         ));
         
-        // Slight Heat Increase
-        newState.routeStats[shipment.route].heat = Math.min(100, newState.routeStats[shipment.route].heat + 5);
+        // Slight Heat Increase (Drones generate 0 heat)
+        if (shipment.route !== RouteType.LOW_ALTITUDE_DRONE) {
+             newState.routeStats[shipment.route].heat = Math.min(100, newState.routeStats[shipment.route].heat + 5);
+        }
       }
       
       completedShipments.push(shipment);

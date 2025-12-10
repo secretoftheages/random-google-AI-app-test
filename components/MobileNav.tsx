@@ -1,5 +1,5 @@
 import React from 'react';
-import { LayoutDashboard, Map, ShoppingCart, ShieldCheck } from 'lucide-react';
+import { LayoutDashboard, Map, ShoppingCart, ShieldCheck, Zap } from 'lucide-react';
 import { Screen } from '../types';
 
 interface MobileNavProps {
@@ -11,6 +11,7 @@ export const MobileNav: React.FC<MobileNavProps> = ({ activeScreen, setActiveScr
   const menuItems = [
     { id: Screen.DASHBOARD, label: 'Dash', icon: LayoutDashboard },
     { id: Screen.OPERATIONS, label: 'Ops', icon: Map },
+    { id: Screen.TECH_TREE, label: 'Tech', icon: Zap },
     { id: Screen.MARKETPLACE, label: 'Market', icon: ShoppingCart },
     { id: Screen.RISK_POOL, label: 'Pool', icon: ShieldCheck },
   ];

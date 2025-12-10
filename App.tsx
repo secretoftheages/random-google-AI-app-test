@@ -6,6 +6,7 @@ import { Dashboard } from './components/Dashboard';
 import { Operations } from './components/Operations';
 import { Marketplace } from './components/Marketplace';
 import { RiskPool } from './components/RiskPool';
+import { TechTree } from './components/TechTree';
 import { Sidebar } from './components/Sidebar';
 import { MobileNav } from './components/MobileNav';
 
@@ -31,6 +32,8 @@ export default function App() {
         return <Dashboard gameState={gameState} />;
       case Screen.OPERATIONS:
         return <Operations gameState={gameState} setGameState={setGameState} />;
+      case Screen.TECH_TREE:
+        return <TechTree gameState={gameState} setGameState={setGameState} />;
       case Screen.MARKETPLACE:
         return <Marketplace gameState={gameState} setGameState={setGameState} />;
       case Screen.RISK_POOL:
@@ -63,6 +66,8 @@ export default function App() {
               <span>DAY: {gameState.day}</span>
               <span className="text-slate-600">|</span>
               <span>HEAT: <span className={gameState.globalHeat > 50 ? 'text-red-400' : 'text-emerald-400'}>{gameState.globalHeat.toFixed(0)}%</span></span>
+              <span className="text-slate-600">|</span>
+              <span className="text-indigo-400">LVL {gameState.level}</span>
             </div>
           </div>
 

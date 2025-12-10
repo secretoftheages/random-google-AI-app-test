@@ -1,5 +1,5 @@
 import React from 'react';
-import { LayoutDashboard, Map, ShoppingCart, ShieldCheck } from 'lucide-react';
+import { LayoutDashboard, Map, ShoppingCart, ShieldCheck, Zap } from 'lucide-react';
 import { Screen } from '../types';
 
 interface SidebarProps {
@@ -11,6 +11,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeScreen, setActiveScreen 
   const menuItems = [
     { id: Screen.DASHBOARD, label: 'Overview', icon: LayoutDashboard },
     { id: Screen.OPERATIONS, label: 'Operations', icon: Map },
+    { id: Screen.TECH_TREE, label: 'Upgrades', icon: Zap },
     { id: Screen.MARKETPLACE, label: 'Black Market', icon: ShoppingCart },
     { id: Screen.RISK_POOL, label: 'Risk Pool', icon: ShieldCheck },
   ];

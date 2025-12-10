@@ -3,6 +3,7 @@ export enum Screen {
   OPERATIONS = 'OPERATIONS',
   MARKETPLACE = 'MARKETPLACE',
   RISK_POOL = 'RISK_POOL',
+  TECH_TREE = 'TECH_TREE',
 }
 
 export enum CommodityType {
@@ -17,6 +18,8 @@ export enum RouteType {
   NORTHERN_CROSSING = 'Northern Crossing',
   MARITIME_BLUE_ZONE = 'Maritime Blue Zone',
   AIR_FREIGHT = 'Air Freight',
+  LOW_ALTITUDE_DRONE = 'Drone Corridor',
+  VIP_HELICOPTER = 'Cartel Chopper',
 }
 
 export enum StrategyType {
@@ -35,6 +38,7 @@ export interface Commodity {
   volatility: number; // 0-1, how much price fluctuates
   riskProfile: number; // 0-1, inherent risk
   weight: number; // impact on logistics
+  requiredLevel: number; // XP Level needed
 }
 
 export interface Shipment {
@@ -56,9 +60,21 @@ export interface RouteStats {
   efficiency: number; // 0-100, decreases with heat
 }
 
+export interface TechNode {
+  id: string;
+  name: string;
+  description: string;
+  cost: number;
+  unlocksRoute?: RouteType;
+  parentId?: string;
+  icon: string;
+}
+
 export interface GameState {
   money: number;
   riskPoolBalance: number;
+  reputation: number; // XP
+  level: number;
   day: number;
   globalHeat: number;
   inventory: Record<CommodityType, number>;
@@ -67,6 +83,7 @@ export interface GameState {
   routeStats: Record<RouteType, RouteStats>;
   marketPrices: Record<CommodityType, number>;
   notifications: Notification[];
+  unlockedTechs: string[];
 }
 
 export interface Notification {

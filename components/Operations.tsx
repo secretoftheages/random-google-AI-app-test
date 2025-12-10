@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { GameState, CommodityType, RouteType, StrategyType, Shipment } from '../types';
-import { COMMODITIES, ROUTE_CONFIG } from '../constants';
+import { COMMODITIES, ROUTE_CONFIG, TECH_TREE_NODES } from '../constants';
 import { calculateRisk } from '../services/gameLogic';
-import { Plane, Ship, Truck, Target, Crosshair, Activity, Package, Skull, Zap, Box } from 'lucide-react';
+import { Plane, Ship, Truck, Target, Crosshair, Bot, Fan, Skull, Package, Zap, Box, Lock, AlertTriangle } from 'lucide-react';
+import { LiveMap } from './LiveMap';
 
 interface OperationsProps {
   gameState: GameState;
@@ -10,7 +11,7 @@ interface OperationsProps {
 }
 
 export const Operations: React.FC<OperationsProps> = ({ gameState, setGameState }) => {
-  const [selectedCommodity, setSelectedCommodity] = useState<CommodityType>(CommodityType.FENTALYTE);
+  const [selectedCommodity, setSelectedCommodity] = useState<CommodityType>(CommodityType.METHRAX);
   const [selectedRoute, setSelectedRoute] = useState<RouteType>(RouteType.SOUTHWEST_MEGAPORT);
   const [selectedStrategy, setSelectedStrategy] = useState<StrategyType>(StrategyType.STANDARD);
   const [amount, setAmount] = useState<number>(10);
@@ -67,6 +68,8 @@ export const Operations: React.FC<OperationsProps> = ({ gameState, setGameState 
     switch (r) {
       case RouteType.AIR_FREIGHT: return <Plane className="mb-2" size={24} />;
       case RouteType.MARITIME_BLUE_ZONE: return <Ship className="mb-2" size={24} />;
+      case RouteType.LOW_ALTITUDE_DRONE: return <Bot className="mb-2" size={24} />;
+      case RouteType.VIP_HELICOPTER: return <Fan className="mb-2" size={24} />;
       default: return <Truck className="mb-2" size={24} />;
     }
   };
@@ -79,6 +82,14 @@ export const Operations: React.FC<OperationsProps> = ({ gameState, setGameState 
       case CommodityType.HERONA: return <Box className="mb-2 text-amber-600" size={24} />;
     }
   }
+
+  // Check locks
+  const isRouteLocked = (r: RouteType) => {
+    const node = TECH_TREE_NODES.find(n => n.unlocksRoute === r);
+    // If no node unlocks it, it's default unlocked. If node exists, must be in unlockedTechs
+    if (!node) return false;
+    return !gameState.unlockedTechs.includes(node.id);
+  };
 
   return (
     <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 h-full">
@@ -94,23 +105,35 @@ export const Operations: React.FC<OperationsProps> = ({ gameState, setGameState 
             <div>
               <label className="block text-xs uppercase font-bold text-slate-400 mb-3 tracking-wider">Select Payload</label>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                {Object.values(COMMODITIES).map(c => (
-                  <button
-                    key={c.id}
-                    onClick={() => setSelectedCommodity(c.id)}
-                    className={`p-3 rounded-lg border flex flex-col items-center justify-center text-center transition-all relative overflow-hidden ${
-                      selectedCommodity === c.id 
-                        ? 'bg-indigo-900/60 border-indigo-500 text-white shadow-[0_0_15px_rgba(99,102,241,0.3)]' 
-                        : 'bg-slate-700/30 border-slate-600 text-slate-400 hover:bg-slate-700/50'
-                    }`}
-                  >
-                    {getCommodityIcon(c.id)}
-                    <div className="font-bold text-xs lg:text-sm mb-1">{c.name}</div>
-                    <div className="text-[10px] opacity-70">Stock: {gameState.inventory[c.id]}</div>
-                    <div className="text-[10px] text-emerald-400 font-mono mt-1">${gameState.marketPrices[c.id]}/u</div>
-                    {selectedCommodity === c.id && <div className="absolute inset-0 border-2 border-indigo-500 rounded-lg pointer-events-none" />}
-                  </button>
-                ))}
+                {Object.values(COMMODITIES).map(c => {
+                  const locked = gameState.level < c.requiredLevel;
+                  return (
+                    <button
+                      key={c.id}
+                      onClick={() => !locked && setSelectedCommodity(c.id)}
+                      disabled={locked}
+                      className={`p-3 rounded-lg border flex flex-col items-center justify-center text-center transition-all relative overflow-hidden ${
+                        selectedCommodity === c.id 
+                          ? 'bg-indigo-900/60 border-indigo-500 text-white shadow-[0_0_15px_rgba(99,102,241,0.3)]' 
+                          : locked
+                          ? 'bg-slate-900 border-slate-800 text-slate-600 opacity-70 cursor-not-allowed'
+                          : 'bg-slate-700/30 border-slate-600 text-slate-400 hover:bg-slate-700/50'
+                      }`}
+                    >
+                      {locked ? <Lock className="mb-2" size={24} /> : getCommodityIcon(c.id)}
+                      <div className="font-bold text-xs lg:text-sm mb-1">{c.name}</div>
+                      {locked ? (
+                          <div className="text-[10px] text-red-500 font-mono mt-1">LVL {c.requiredLevel} REQ</div>
+                      ) : (
+                          <>
+                            <div className="text-[10px] opacity-70">Stock: {gameState.inventory[c.id]}</div>
+                            <div className="text-[10px] text-emerald-400 font-mono mt-1">${gameState.marketPrices[c.id]}/u</div>
+                          </>
+                      )}
+                      {selectedCommodity === c.id && <div className="absolute inset-0 border-2 border-indigo-500 rounded-lg pointer-events-none" />}
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
@@ -122,26 +145,35 @@ export const Operations: React.FC<OperationsProps> = ({ gameState, setGameState 
                    const rType = key as RouteType;
                    const stats = gameState.routeStats[rType];
                    const isSelected = selectedRoute === rType;
+                   const locked = isRouteLocked(rType);
+                   
                    return (
                     <button
                       key={key}
-                      onClick={() => setSelectedRoute(rType)}
+                      onClick={() => !locked && setSelectedRoute(rType)}
+                      disabled={locked}
                       className={`p-4 rounded-lg border text-left transition-all relative overflow-hidden group ${
                         isSelected
                           ? 'bg-slate-700 border-indigo-500 text-indigo-100 ring-1 ring-indigo-500' 
+                          : locked
+                          ? 'bg-slate-900 border-slate-800 text-slate-600 cursor-not-allowed opacity-60'
                           : 'bg-slate-700/30 border-slate-600 text-slate-400 hover:border-slate-500'
                       }`}
                     >
                       <div className="flex justify-between items-start">
                         <div className="flex flex-col">
-                           {getRouteIcon(rType)}
+                           {locked ? <Lock className="mb-2" size={24} /> : getRouteIcon(rType)}
                            <span className="font-bold text-sm leading-tight">{rType}</span>
                         </div>
-                        <div className={`text-[10px] font-mono px-2 py-1 rounded-full ${stats.heat > 50 ? 'bg-red-900/50 text-red-200 border border-red-800' : 'bg-slate-600/50 text-slate-300 border border-slate-500'}`}>
-                          {stats.heat.toFixed(0)}% HEAT
-                        </div>
+                        {!locked && (
+                           <div className={`text-[10px] font-mono px-2 py-1 rounded-full ${stats.heat > 50 ? 'bg-red-900/50 text-red-200 border border-red-800' : 'bg-slate-600/50 text-slate-300 border border-slate-500'}`}>
+                             {stats.heat.toFixed(0)}% HEAT
+                           </div>
+                        )}
                       </div>
-                      <div className="text-[10px] opacity-60 mt-2 leading-relaxed">{config.description}</div>
+                      <div className="text-[10px] opacity-60 mt-2 leading-relaxed">
+                          {locked ? 'Tech Upgrade Required' : config.description}
+                      </div>
                     </button>
                    );
                 })}
@@ -162,16 +194,7 @@ export const Operations: React.FC<OperationsProps> = ({ gameState, setGameState 
                         <option key={s} value={s}>{s}</option>
                         ))}
                     </select>
-                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-slate-400">
-                        <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
-                    </div>
                   </div>
-                  <p className="text-[10px] text-slate-500 mt-2 px-1">
-                    {selectedStrategy === StrategyType.DECOY ? 'Sends dummy shipment first. Cost: $2,000. Risk: -60%.' :
-                    selectedStrategy === StrategyType.SHOTGUN ? 'Splits cargo. Risk averaged.' : 
-                    selectedStrategy === StrategyType.PREMIUM_CONCEALMENT ? 'Better packing. Cost: $500. Risk: -40%.' :
-                    'Standard packaging. No extra cost.'}
-                  </p>
                 </div>
 
                 {/* Amount Slider */}
@@ -223,52 +246,21 @@ export const Operations: React.FC<OperationsProps> = ({ gameState, setGameState 
         </div>
       </div>
 
-      {/* Live Monitor */}
-      <div className="bg-slate-800 rounded-xl border border-slate-700 flex flex-col shadow-lg overflow-hidden h-96 xl:h-auto">
-        <div className="p-4 border-b border-slate-700 bg-slate-800/80 backdrop-blur flex justify-between items-center">
-          <h3 className="font-bold text-slate-200 flex items-center gap-2">
-            <Activity className="text-emerald-400" size={18} /> Live Feeds
-          </h3>
-          <span className="text-xs font-mono text-slate-500 animate-pulse">MONITORING_ACTIVE</span>
-        </div>
-        <div className="flex-1 overflow-y-auto p-4 space-y-4 relative">
-            <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-5 pointer-events-none"></div>
-          {gameState.activeShipments.length === 0 && (
-            <div className="h-full flex flex-col items-center justify-center text-slate-600">
-              <div className="w-16 h-16 border-2 border-slate-700 rounded-full flex items-center justify-center mb-4">
-                  <div className="w-2 h-2 bg-slate-600 rounded-full animate-ping"></div>
-              </div>
-              <p className="text-sm font-bold">NO SIGNAL</p>
-              <p className="text-[10px] uppercase tracking-widest mt-1">Systems Standing By</p>
+      {/* Live Map Visualization */}
+      <div className="flex flex-col gap-4">
+        <LiveMap shipments={gameState.activeShipments} />
+        
+        <div className="flex-1 bg-slate-800 rounded-xl border border-slate-700 p-4 overflow-hidden flex flex-col">
+            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Live Logs</h3>
+            <div className="flex-1 overflow-y-auto space-y-2 text-[10px] font-mono">
+                {gameState.activeShipments.length === 0 && <div className="text-slate-600 italic">No activity detected on sensor grid.</div>}
+                {gameState.activeShipments.map(s => (
+                    <div key={s.id} className="flex justify-between border-b border-slate-700 pb-1">
+                        <span className="text-indigo-400">{s.route}</span>
+                        <span className="text-slate-500">{s.progress.toFixed(1)}%</span>
+                    </div>
+                ))}
             </div>
-          )}
-          {gameState.activeShipments.map(shipment => (
-            <div key={shipment.id} className="bg-slate-900 border border-slate-700 rounded-lg p-3 relative overflow-hidden group">
-              {/* Progress Bar Background */}
-              <div 
-                className="absolute top-0 left-0 bottom-0 bg-indigo-600/10 pointer-events-none transition-all duration-1000 ease-linear border-r border-indigo-500/30"
-                style={{ width: `${shipment.progress}%` }}
-              />
-              
-              <div className="relative z-10 flex justify-between items-start mb-2">
-                 <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-bold text-indigo-300 bg-indigo-900/40 px-2 py-0.5 rounded border border-indigo-500/30">{shipment.route}</span>
-                 </div>
-                 <span className="font-mono text-[10px] text-indigo-300">{shipment.progress.toFixed(0)}%</span>
-              </div>
-              
-              <div className="relative z-10 flex justify-between items-end">
-                <div>
-                  <div className="font-bold text-slate-200 text-sm">{shipment.amount}x {shipment.commodity}</div>
-                  <div className="text-[10px] text-slate-500 uppercase tracking-wide">{shipment.strategy}</div>
-                </div>
-                <div className="text-right">
-                   <div className="text-[10px] text-slate-500">Risk: {(shipment.risk * 100).toFixed(0)}%</div>
-                   <div className="text-emerald-500 font-mono text-xs font-bold">${shipment.potentialRevenue.toLocaleString()}</div>
-                </div>
-              </div>
-            </div>
-          ))}
         </div>
       </div>
     </div>
